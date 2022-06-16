@@ -6,7 +6,8 @@ class MarkovMachine {
       let words = text.split(/[ \r\n]+/);
       this.words = words.filter(c => c !== "");
       this.makeChains();
-      this.makeText()
+    //   this.makeText()
+        this.count = 0
     }
   
     /** set markov chains:
@@ -16,70 +17,67 @@ class MarkovMachine {
 
     makeChains() {
         // TODO
-        this.chains = {}
-        for(let i = 0; i < this.words.length - 1; i++) {
-            let word1 = this.words[i]
-            let word2 = this.words[i + 1]
-            let key = word1 + " " + word2
+        let chains = new Map()
+        for(let i = 0; i < this.words.length -1; i+= 1) {
+            let key = this.words[i] + " " + this.words[i + 1]
+            let val = this.words[i + 2] || null
 
-            if(Object.keys(this.chains).indexOf(key) !== -1) {
-                this.chains[key].push(this.words[i + 2])
+            if(chains.has(key)) {
+                chains.get(key).push(val)
             }
             else {
-                this.chains[word1 + " " + word2] = [this.words[i + 2] || null]
+                chains.set(key, [val])
             }
         }
-        this.addStops(this.chains)
+        // this.addStops(chains)
+        this.chains = chains
       }
-      
-    isCapitalized(word) {
-        if(word[0].toUpperCase() !== word[0]) {
-            return false
-        }
-        return true
-    }
 
-    addStops(obj) {
-        for(let key in obj) {
-            if((Object.keys(obj).indexOf(key) + 1)%3 === 0 && !key.endsWith(",") && key.indexOf(".") === -1) {
-                obj[key].push(null)
-                obj[key] = this.shuffle(obj[key])
+    addStops(map) {
+        for(let key in map) {
+            if((map.keys().indexOf(key) + 1)%3 === 0 && !key.endsWith(",") && key.indexOf(".") === -1) {
+                map.get(key).push(null)
             }   
         }
     }
 
-    findText(idx) {
-        let entries = Object.entries(this.chains)
-        let valsIdx = this.randomInt(entries[idx][1].length)
+    findText(idx, arr) {
+        let key = arr[idx]
+        let valsIdx = this.randomInt(this.chains.get(key).length)
 
-        if(entries[idx][1][valsIdx] === null) {
-            return entries[idx][0] + "."
-        } 
+        if(this.chains.get(key)[valsIdx] === null) {
+            this.count += 2
+            return this.chains.get(key) + "."
+        }
 
-        else {
-            return entries[idx][0] + " " + entries[idx][1][valsIdx]
-       }
+        this.count += 3
+        return key + " " + this.chains.get(key)[valsIdx]
     }
   
-    makeText(numWords = 20) {
+    makeText(numWords = 10) {
       // TODO
       let text = []
+      let entries = Array.from(this.chains.entries())
+      let keys = Array.from(this.chains.keys())
 
-      while(text.length < numWords) {
+      while(numWords >= this.count && entries.length !== 0) {
           let lastWord = text[text.length - 1]
           
         if(text.length === 0 || this.endsInPeriod(lastWord)) {
-            let idx = this.findUpperCase()
-            text.push(this.findText(idx))
+            let idx = this.findUpperCase(keys)
+            text.push(this.findText(idx, keys))
+            entries.pop()
             
         }
         else {
-            let idx = this.randomInt(Object.keys(this.chains).length)
-            let string = this.findText(idx)
+            let idx = this.randomInt(keys.length)
+            let string = this.findText(idx, keys)
+            // let key = keys[idx]
             let firstWord = string.slice(0, string.indexOf(" "))
 
             if(lastWord.toLowerCase().indexOf(firstWord.toLowerCase()) === -1 && string[0].toUpperCase() !== string[0]) {
-                text.push(this.findText(idx))
+                text.push(this.findText(idx, keys))
+                entries.pop()
             }
         }
       }
@@ -92,20 +90,6 @@ class MarkovMachine {
         return Math.floor(Math.random() * (n - 1))
     }
 
-    shuffle(array) {
-        let length = array.length
-
-        while (length > 0) {
-            let index = Math.floor(Math.random() * length);
-            length--;
-            let temp = array[length];
-            array[length] = array[index];
-            array[index] = temp;
-        }
-
-        return array;
-    }
-
     endsInPeriod(string) {
         if(!string || !string.endsWith(".")) {
             return false
@@ -115,11 +99,20 @@ class MarkovMachine {
         }
     }
 
-    findUpperCase() {
-        let keys = Object.keys(this.chains);
-        let upperCase = keys.filter(key => key[0].toUpperCase() === key[0])
+    isCapitalized(word) {
+        if(word[0].toUpperCase() !== word[0]) {
+            return false
+        }
+        return true
+    }
+
+    findUpperCase(arr) {
+        let upperCase = arr.filter(key => key[0].toUpperCase() === key[0])
+        if(upperCase.length === 0) {
+            return this.randomInt(arr.length)
+        }
         let randUpperCase = upperCase[this.randomInt(upperCase.length)]
-        return keys.indexOf(randUpperCase)
+        return arr.indexOf(randUpperCase)
     }
 
   }
